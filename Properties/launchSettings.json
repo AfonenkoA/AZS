@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "AZS": {
+      "commandName": "Project",
+      "commandLineArgs": "-c"
+    }
+  }
+}

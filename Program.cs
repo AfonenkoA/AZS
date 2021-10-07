@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.Unicode;
 using static System.Text.Json.JsonSerializer;
+using static System.Console;
 
 namespace AZS
 {
@@ -75,9 +76,26 @@ namespace AZS
             });
         }
 
-        public static void Main(String[] args)
+        public static void Main(string[] args)
         {
-            File.WriteAllText("1.json", Process());
+            try
+            {
+                if (args.Length == 1 && args[0] == "-c")
+                {
+                    WriteLine(Process());
+                    return;
+                }
+                if (args.Length == 2 && args[0] == "-f")
+                {
+                    File.WriteAllText(args[1], Process());
+                    return;
+                }
+                WriteLine("run with:\n-c to show result in console;\n-f [filename] to write result in file;");
+            }
+            catch (Exception e)
+            {
+                WriteLine(e);
+            }    
         }
     }
 }
