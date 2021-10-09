@@ -1,101 +1,79 @@
-﻿using System.Text.Encodings.Web;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Text;
+using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Unicode;
-using static System.Text.Json.JsonSerializer;
 using static System.Console;
+
 
 namespace AZS
 {
-    public class GasStation
+    internal class Program
     {
-        public string name { get; set; } = "";
-        public int id { get; set; }
-        public string address { get; set; } = "";
-        public int retail_network { get; set; }
-        public int region { get; set; }
-    }
-
-    public class RetailNetwork
-    {
-        public string name { get; set; } = "";
-        public int id { get; set; }
-    }
-
-    public class Region
-    {
-        public int id { get; set; }
-        public string name { get; set; } = "";
-    }
-
-    public class ExtendedGasStation
-    {
-        public ExtendedGasStation(GasStation station, Dictionary<int, string> networks, Dictionary<int, string> regions)
+        public static void Process(Stream stream)
         {
-            name = station.name;
-            address = station.address;
-            retail_network = networks[station.retail_network];
-            region = regions[station.region];
-        }
-        public string name { get; set; } = "";
-        public string address { get; set; } = "";
-        public string retail_network { get; set; } = "";
-        public string region { get; set; } = "";
-    }
-
-    public class Program
-    {
-        private static readonly HttpClient client = new() { BaseAddress = new Uri("https://zaprauka.by/api/") };
-
-        public static IEnumerable<T>? Get<T>(string path) where T : class
-        {
-            return Deserialize<IEnumerable<T>>(client.GetStringAsync(path + "/?format=json").GetAwaiter().GetResult());
-        }
-
-        public static string Process()
-        {
-            Exception exception = new("Parsing failed");
-            IEnumerable<Region> regionList = Get<Region>("regions") ?? throw exception;
-            IEnumerable<RetailNetwork> networkList = Get<RetailNetwork>("retail_networks") ?? throw exception;
-            IEnumerable<GasStation> stations = Get<GasStation>("gas_stations") ?? throw exception;
-
-            Dictionary<int, string> regions = new();
-            foreach (Region region in regionList)
-                regions.Add(region.id, region.name);
-
-            Dictionary<int, string> networks = new();
-            foreach (RetailNetwork network in networkList)
-                networks.Add(network.id, network.name);
-
-            List<ExtendedGasStation> result = new();
-            foreach (GasStation station in stations)
-                result.Add(new ExtendedGasStation(station, networks, regions));
-            return Serialize(result, new JsonSerializerOptions
+            List<string> exceptedTags = File.ReadAllLines("ExceptedTags.txt").OrderBy(q => q).ToList();
+            List<string> requiredTags = File.ReadAllLines("RequiredTags.txt").ToList();
+            HttpClient client = new();
+            Utf8JsonWriter writer = new(stream, new JsonWriterOptions
             {
-                Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-                WriteIndented = true
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                Indented = true
             });
-        }
 
+            string rawJson = client.GetStringAsync(File.ReadAllText("Query.txt")).GetAwaiter().GetResult();
+            using JsonDocument document = JsonDocument.Parse(rawJson);
+            var elements = document.RootElement.GetProperty("elements");
+
+            writer.WriteStartArray();
+            foreach (var element in elements.EnumerateArray())
+            {
+                List<JsonProperty> properties = new();
+
+                properties.AddRange(element.EnumerateObject().Where(i => exceptedTags.BinarySearch(i.Name) < 0));
+                properties.AddRange(element.GetProperty("tags").EnumerateObject().Where(i => exceptedTags.BinarySearch(i.Name) < 0));
+
+                if (requiredTags.Except(properties.Select(p => p.Name)).Any()) continue;
+
+                writer.WriteStartObject();
+                foreach (var property in properties)
+                    property.WriteTo(writer);
+                writer.WriteEndObject();
+            }
+            writer.WriteEndArray();
+            writer.Flush();
+        }
         public static void Main(string[] args)
         {
             try
             {
-                if (args.Length == 1 && args[0] == "-c")
+                switch (args.Length)
                 {
-                    WriteLine(Process());
-                    return;
+                    case 1 when args[0] == "-c":
+                        {
+                            using MemoryStream stream = new();
+                            Process(stream);
+                            WriteLine(Encoding.UTF8.GetString(stream.ToArray()));
+                            break;
+                        }
+                    case 2 when args[0] == "-f":
+                        {
+                            using FileStream stream = File.OpenWrite(args[1]);
+                            Process(stream);
+                            break;
+                        }
+                    default:
+                        WriteLine("run with:\n-c to show result in console;\n-f [filename] to write result in file;");
+                        break;
                 }
-                if (args.Length == 2 && args[0] == "-f")
-                {
-                    File.WriteAllText(args[1], Process());
-                    return;
-                }
-                WriteLine("run with:\n-c to show result in console;\n-f [filename] to write result in file;");
             }
             catch (Exception e)
             {
                 WriteLine(e);
-            }    
+            }
         }
     }
 }

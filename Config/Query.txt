@@ -1,0 +1,13 @@
+﻿https://overpass-api.de/api/interpreter?data=
+<osm-script output="json" output-config="" timeout="120">
+  <query into="searchArea" type="area">
+    <id-query type="area" ref="3600059065" into="searchArea"/>
+  </query>
+  <union into="_">
+    <query into="_" type="node">
+      <has-kv k="amenity" modv="" v="fuel"/>
+      <area-query from="searchArea"/>
+    </query>
+  </union>
+  <print e="" from="_" geometry="skeleton" ids="yes" limit="" mode="body" n="" order="id" s="" w=""/>
+</osm-script>
