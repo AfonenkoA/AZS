@@ -7,8 +7,16 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="XCOPY &quot;$(SolutionDir)Config&quot; &quot;$(TargetDir)&quot; /S /Y" />
-  </Target>
+  <ItemGroup>
+    <None Update="Config\Query.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Config\RequiredTags.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="result.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

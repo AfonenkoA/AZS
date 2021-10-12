@@ -1,3 +1,4 @@
 lat
 lon
 name
+brand
